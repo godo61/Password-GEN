@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, PropsWithChildren } from 'react';
 import { AppState, PasswordEntry, GeneratorSettings } from '../types';
 
 interface AppContextType extends AppState {
@@ -23,7 +23,7 @@ const defaultSettings: GeneratorSettings = {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-export const AppProvider = ({ children }: { children: ReactNode }) => {
+export const AppProvider: React.FC<PropsWithChildren<{}>> = ({ children }) => {
   // Initialize state from localStorage or defaults
   // Updated keys from 'cf_' to 'pg_' for Password GEN
   const [history, setHistory] = useState<PasswordEntry[]>(() => {
