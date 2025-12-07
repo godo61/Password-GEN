@@ -1,6 +1,5 @@
 
-const CACHE_NAME = 'password-gen-v4';
-const BASE_SCOPE = '/Password-GEN/';
+const CACHE_NAME = 'password-gen-v5';
 
 // Lista de archivos vitales para que la app funcione offline
 const INITIAL_ASSETS = [
@@ -41,21 +40,28 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
+  const url = new URL(event.request.url);
+
   // Estrategia Network First para navegación (HTML)
-  // Esto arregla el error 404 en GitHub Pages al refrescar
+  // CRÍTICO: Si la red falla O devuelve 404, servimos index.html del caché
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request)
         .then((response) => {
-          return caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, response.clone());
+          // Si la respuesta es válida (200 OK), la actualizamos en caché y la devolvemos
+          if (response && response.status === 200) {
+            const responseToCache = response.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, responseToCache);
+            });
             return response;
-          });
+          }
+          // Si el servidor devuelve 404 o error, forzamos el caché
+          return caches.match('./index.html');
         })
         .catch(() => {
-          // Si no hay red, devolvemos index.html del caché
-          // Usamos la ruta relativa ./index.html que funciona dentro del scope
-          return caches.match('./index.html') || caches.match('index.html');
+          // Si no hay red (offline), devolvemos index.html del caché
+          return caches.match('./index.html');
         })
     );
     return;
@@ -64,6 +70,7 @@ self.addEventListener('fetch', (event) => {
   // Estrategia Stale-While-Revalidate para recursos estáticos (JS, CSS, Imágenes)
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
+      // Lanzamos fetch en segundo plano para actualizar caché futura
       const fetchPromise = fetch(event.request)
         .then((networkResponse) => {
           if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
@@ -78,6 +85,7 @@ self.addEventListener('fetch', (event) => {
           // Fallo silencioso en fetch de fondo
         });
 
+      // Devolvemos caché si existe, si no esperamos a la red
       return cachedResponse || fetchPromise;
     })
   );
