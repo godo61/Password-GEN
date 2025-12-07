@@ -1,8 +1,10 @@
+
 {
   "name": "Password GEN",
   "short_name": "PassGEN",
   "description": "Generador de contraseñas seguro optimizado para QWERTY español.",
-  "start_url": "./",
+  "start_url": "./index.html",
+  "scope": "./",
   "display": "standalone",
   "background_color": "#101922",
   "theme_color": "#137fec",
