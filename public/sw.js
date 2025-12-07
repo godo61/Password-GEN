@@ -1,5 +1,5 @@
 
-const CACHE_NAME = 'password-gen-v9';
+const CACHE_NAME = 'password-gen-v10';
 
 // Lista de archivos vitales para que la app funcione offline
 const INITIAL_ASSETS = [
