@@ -1,5 +1,7 @@
 
-const CACHE_NAME = 'password-gen-v3';
+const CACHE_NAME = 'password-gen-v12';
+
+// Lista de archivos vitales para que la app funcione offline
 const INITIAL_ASSETS = [
   './',
   './index.html',
@@ -9,18 +11,16 @@ const INITIAL_ASSETS = [
 ];
 
 self.addEventListener('install', (event) => {
-  // Forzar al SW a activarse inmediatamente
   self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('Abriendo caché y guardando assets iniciales');
+      console.log('SW: Cacheando assets iniciales');
       return cache.addAll(INITIAL_ASSETS);
     })
   );
 });
 
 self.addEventListener('activate', (event) => {
-  // Tomar control de todos los clientes inmediatamente
   event.waitUntil(
     Promise.all([
       self.clients.claim(),
@@ -28,7 +28,6 @@ self.addEventListener('activate', (event) => {
         return Promise.all(
           cacheNames.map((cacheName) => {
             if (cacheName !== CACHE_NAME) {
-              console.log('Borrando caché antigua:', cacheName);
               return caches.delete(cacheName);
             }
           })
@@ -39,57 +38,55 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // Ignorar peticiones que no sean GET (como POST a APIs, aunque aquí no hay)
   if (event.request.method !== 'GET') return;
 
   const url = new URL(event.request.url);
 
-  // Estrategia para Navegación (HTML): Network First, Fallback to Cache
-  // Esto soluciona el error 404 al recargar o abrir la app instalada
+  // Estrategia Network First para navegación (HTML)
+  // CRÍTICO: Si la red falla O devuelve 404, servimos index.html del caché
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request)
         .then((response) => {
-          return caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, response.clone());
+          // Si la respuesta es válida (200 OK), la actualizamos en caché y la devolvemos
+          if (response && response.status === 200) {
+            const responseToCache = response.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, responseToCache);
+            });
             return response;
-          });
+          }
+          // Si el servidor devuelve 404 o error, forzamos el caché
+          return caches.match('./index.html');
         })
         .catch(() => {
-          // Si falla la red (offline), devolver siempre index.html
-          console.log('Offline: Sirviendo index.html para navegación');
+          // Si no hay red (offline), devolvemos index.html del caché
           return caches.match('./index.html');
         })
     );
     return;
   }
 
-  // Estrategia para Recursos (JS, CSS, Imágenes): Cache First, Fallback to Network & Cache
-  // Dado que Vite genera nombres con hash, cacheamos dinámicamente lo que se pida.
+  // Estrategia Stale-While-Revalidate para recursos estáticos (JS, CSS, Imágenes)
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
-      if (cachedResponse) {
-        return cachedResponse;
-      }
-
-      return fetch(event.request)
-        .then((response) => {
-          // Validar respuesta válida
-          if (!response || response.status !== 200 || response.type !== 'basic' && response.type !== 'cors') {
-            return response;
+      // Lanzamos fetch en segundo plano para actualizar caché futura
+      const fetchPromise = fetch(event.request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
+            const responseToCache = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, responseToCache);
+            });
           }
-
-          const responseToCache = response.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseToCache);
-          });
-
-          return response;
+          return networkResponse;
         })
         .catch(() => {
-          // Si falla imagen u otro recurso, podría devolverse un placeholder aquí si se quisiera
-          return new Response('Offline resource not available');
+          // Fallo silencioso en fetch de fondo
         });
+
+      // Devolvemos caché si existe, si no esperamos a la red
+      return cachedResponse || fetchPromise;
     })
   );
 });
