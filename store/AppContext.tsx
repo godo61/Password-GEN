@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode, PropsWithChildren } from 'react';
+import React, { createContext, useContext, useState, useEffect, PropsWithChildren } from 'react';
 import { AppState, PasswordEntry, GeneratorSettings } from '../types';
 
 interface AppContextType extends AppState {
@@ -9,6 +9,8 @@ interface AppContextType extends AppState {
   toggleDarkMode: () => void;
   installPrompt: any; // Evento PWA
   triggerInstall: () => void;
+  isStandalone: boolean;
+  isIOS: boolean;
 }
 
 const defaultSettings: GeneratorSettings = {
@@ -43,8 +45,21 @@ export const AppProvider: React.FC<PropsWithChildren<{}>> = ({ children }) => {
 
   // PWA Install State
   const [installPrompt, setInstallPrompt] = useState<any>(null);
+  const [isStandalone, setIsStandalone] = useState(false);
+  const [isIOS, setIsIOS] = useState(false);
 
   useEffect(() => {
+    // Detect Standalone mode
+    const mq = window.matchMedia('(display-mode: standalone)');
+    setIsStandalone(mq.matches);
+    const changeHandler = (evt: any) => setIsStandalone(evt.matches);
+    mq.addEventListener('change', changeHandler);
+
+    // Detect iOS
+    const userAgent = window.navigator.userAgent.toLowerCase();
+    setIsIOS(/iphone|ipad|ipod/.test(userAgent));
+
+    // Install prompt listener
     const handler = (e: any) => {
       // Prevent the mini-infobar from appearing on mobile
       e.preventDefault();
@@ -54,7 +69,10 @@ export const AppProvider: React.FC<PropsWithChildren<{}>> = ({ children }) => {
 
     window.addEventListener('beforeinstallprompt', handler);
 
-    return () => window.removeEventListener('beforeinstallprompt', handler);
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handler);
+      mq.removeEventListener('change', changeHandler);
+    };
   }, []);
 
   const triggerInstall = () => {
@@ -119,7 +137,9 @@ export const AppProvider: React.FC<PropsWithChildren<{}>> = ({ children }) => {
       updateSettings,
       toggleDarkMode,
       installPrompt,
-      triggerInstall
+      triggerInstall,
+      isStandalone,
+      isIOS
     }}>
       {children}
     </AppContext.Provider>

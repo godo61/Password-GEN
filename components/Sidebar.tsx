@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useApp } from '../store/AppContext';
 
 const Sidebar: React.FC = () => {
-  const { toggleDarkMode, darkMode, installPrompt, triggerInstall } = useApp();
+  const { toggleDarkMode, darkMode, installPrompt, triggerInstall, isStandalone, isIOS } = useApp();
   const location = useLocation();
+  const [showInstructions, setShowInstructions] = useState(false);
 
   const navItems = [
     { name: 'Generador', path: '/', icon: 'password' },
@@ -12,6 +13,14 @@ const Sidebar: React.FC = () => {
     { name: 'Ajustes', path: '/settings', icon: 'tune' },
     { name: 'Ayuda', path: '/help', icon: 'help' },
   ];
+
+  const handleInstallClick = () => {
+    if (installPrompt) {
+      triggerInstall();
+    } else {
+      setShowInstructions(true);
+    }
+  };
 
   return (
     <>
@@ -55,11 +64,11 @@ const Sidebar: React.FC = () => {
             </NavLink>
           ))}
           
-          {/* Install Button (Desktop) */}
-          {installPrompt && (
+          {/* Install Button (Desktop) - Always show if not installed */}
+          {!isStandalone && (
             <div className="mt-4 px-4">
               <button 
-                onClick={triggerInstall}
+                onClick={handleInstallClick}
                 className="w-full flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white rounded-xl shadow-md hover:shadow-lg transition-all transform hover:-translate-y-0.5 active:translate-y-0"
               >
                 <span className="material-symbols-outlined">download</span>
@@ -108,9 +117,9 @@ const Sidebar: React.FC = () => {
               )}
             </NavLink>
           ))}
-          {installPrompt && (
+          {!isStandalone && (
              <button
-              onClick={triggerInstall}
+              onClick={handleInstallClick}
               className="flex flex-col items-center justify-center w-full h-full gap-1 text-green-600 dark:text-green-500 animate-pulse"
              >
                 <span className="material-symbols-outlined text-[24px]">download</span>
@@ -119,6 +128,59 @@ const Sidebar: React.FC = () => {
           )}
         </div>
       </nav>
+
+      {/* Manual Install Instructions Modal */}
+      {showInstructions && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setShowInstructions(false)}>
+          <div className="bg-white dark:bg-[#1e293b] rounded-2xl p-6 max-w-sm w-full shadow-2xl border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-start mb-4">
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white">Instalar Aplicación</h3>
+              <button onClick={() => setShowInstructions(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+            
+            <div className="flex flex-col gap-4 text-sm text-slate-600 dark:text-gray-300">
+              {isIOS ? (
+                <>
+                  <p>Para instalar en tu iPhone o iPad:</p>
+                  <ol className="flex flex-col gap-3">
+                    <li className="flex items-center gap-3 bg-gray-50 dark:bg-black/20 p-3 rounded-lg">
+                      <span className="material-symbols-outlined text-blue-500">ios_share</span>
+                      <span>1. Pulsa el botón <strong>Compartir</strong> en la barra inferior de Safari.</span>
+                    </li>
+                    <li className="flex items-center gap-3 bg-gray-50 dark:bg-black/20 p-3 rounded-lg">
+                      <span className="material-symbols-outlined text-gray-700 dark:text-gray-300">add_box</span>
+                      <span>2. Desliza y selecciona <strong>Añadir a inicio</strong>.</span>
+                    </li>
+                  </ol>
+                </>
+              ) : (
+                <>
+                  <p>Para instalar en tu navegador:</p>
+                  <ol className="flex flex-col gap-3">
+                    <li className="flex items-center gap-3 bg-gray-50 dark:bg-black/20 p-3 rounded-lg">
+                      <span className="material-symbols-outlined">more_vert</span>
+                      <span>1. Pulsa el menú de opciones (tres puntos) de tu navegador.</span>
+                    </li>
+                    <li className="flex items-center gap-3 bg-gray-50 dark:bg-black/20 p-3 rounded-lg">
+                      <span className="material-symbols-outlined">install_mobile</span>
+                      <span>2. Selecciona <strong>Instalar aplicación</strong> o <strong>Añadir a pantalla de inicio</strong>.</span>
+                    </li>
+                  </ol>
+                </>
+              )}
+            </div>
+
+            <button 
+              onClick={() => setShowInstructions(false)}
+              className="mt-6 w-full py-3 bg-primary text-white font-bold rounded-xl hover:bg-blue-600 transition-colors"
+            >
+              Entendido
+            </button>
+          </div>
+        </div>
+      )}
     </>
   );
 };
