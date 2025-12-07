@@ -1,0 +1,5 @@
+{
+  "name": "Password GEN",
+  "description": "Generador y gestor de contraseñas optimizado para teclados QWERTY en español.",
+  "requestFramePermissions": []
+}
